@@ -8,7 +8,7 @@ from train import kd_train
 from datetime import datetime
 
 
-def run_experiment(dataset, device):
+def run_experiment_alpha_temperature(dataset, device):
     # Load dataset
     train_dataset, test_dataset = load_mnist() if dataset == 'mnist' else load_cifar()
 
@@ -28,7 +28,7 @@ def run_experiment(dataset, device):
             # Save trained model with name
             timestamp = datetime.now().strftime("%H:%M:%S")
             filename = f'{timestamp}_student_t{kd_temperature[i]}_a{kd_alpha[j]:.2f}'.replace('.', '-')
-            torch.save(student_model, f'./models/{filename}.pt')
+            torch.save(student_model.state_dict(), f'./models/{filename}.pt')
 
             # Save results
             with open(f'{filename}.pickle', 'wb') as handle:
@@ -41,4 +41,4 @@ if __name__ == '__main__':
     device_name = torch.cuda.get_device_name() if torch_device.type == 'cuda' else 'cpu'
     print(f'Using device: {device_name}, type {torch_device}')
 
-    run_experiment('cifar', torch_device)
+    run_experiment_alpha_temperature('cifar', torch_device)

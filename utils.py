@@ -16,7 +16,7 @@ def calc_accuracy(test_dataset, model, device):
             imgs, labels = imgs.to(device), labels.to(device)
             preds = model(imgs)
             pred_class = torch.argmax(preds, dim=1)
-            correct += torch.eq(pred_class, labels)
+            correct += torch.eq(pred_class, labels).sum()
 
     print(f'test accuracy: {(correct * 100) / len(test_dataset.dataset):.3f}%')
 
