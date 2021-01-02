@@ -1,11 +1,43 @@
 import torch
+from torch.utils.data import Subset
 import numpy as np
 import pickle
-from utils import load_mnist, load_cifar
+from sklearn.model_selection import train_test_split
+from utils import load_mnist, load_cifar, calc_accuracy
 from model import create_student, create_teacher
 from train import kd_train
 
 from datetime import datetime
+
+
+def run_experiment_small_dataset(dataset, device, how_much, temperature=10, alpha=0.1):
+    # Load dataset
+    train_dataset, test_dataset = load_mnist() if dataset == 'mnist' else load_cifar()
+
+    # Create a small subset of the original training dataset, with approx. equal distribution of classes
+    indices = np.arange(len(train_dataset.dataset))
+    number_train_samples = int(len(train_dataset.dataset) * how_much)
+    train_indices, _ = train_test_split(indices,
+                                        train_size=number_train_samples, stratify=train_dataset.dataset.targets)
+    train_subset = torch.utils.data.Subset(train_dataset.dataset, train_indices)
+    small_train_dataset = torch.utils.data.DataLoader(train_subset, batch_size=16, shuffle=True, num_workers=2)
+
+    # Create teacher & student models
+    student_model = create_student(device, temperature)
+    teacher_model = create_teacher(device, temperature, './models/cifar_teacher_0.pt')
+
+    student_model, logged_data = kd_train((small_train_dataset, test_dataset),
+                                          teacher_model, student_model,
+                                          temperature=temperature, alpha=alpha, device=device)
+
+    # Save trained model with name
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    filename = f'{timestamp}_student_small_dataset'
+    torch.save(student_model.state_dict(), f'./models/{filename}.pt')
+
+    student_model.eval()
+    print(calc_accuracy(test_dataset, student_model, device))
+    student_model.train()
 
 
 def run_experiment_alpha_temperature(dataset, device):

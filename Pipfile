@@ -10,6 +10,7 @@ numpy = "*"
 torchvision = "*"
 torchsummary = "*"
 seaborn = "*"
+scikit-learn = "*"
 
 [dev-packages]
 
