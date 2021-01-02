@@ -14,7 +14,7 @@ def calc_accuracy(test_dataset, model, device):
     with torch.no_grad():
         for i, (imgs, labels) in enumerate(test_dataset):
             imgs, labels = imgs.to(device), labels.to(device)
-            preds = model(imgs)
+            _, preds = model(imgs)
             pred_class = torch.argmax(preds, dim=1)
             correct += torch.eq(pred_class, labels).sum()
 

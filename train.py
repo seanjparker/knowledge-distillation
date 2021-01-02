@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 from torch.utils.data.dataloader import DataLoader
 
 import numpy as np
@@ -23,7 +24,7 @@ def kd_train(datasets: Tuple[DataLoader, DataLoader], teacher, student, student_
     # Set up the lr scheduler and loss functions
     student_lr_sch = torch.optim.lr_scheduler.MultiStepLR(student_optimizer, [10, 25, 40], gamma=0.5)
     student_loss_fn = nn.CrossEntropyLoss()
-    distillation_loss_fn = torch.nn.KLDivLoss(reduction='mean')
+    distillation_loss_fn = torch.nn.KLDivLoss(reduction='batchmean')
 
     # Setup arrays to record data while training
     losses = np.zeros((epochs,), dtype=np.float32)
@@ -39,23 +40,24 @@ def kd_train(datasets: Tuple[DataLoader, DataLoader], teacher, student, student_
             # Forward pass of the teacher with input
             with torch.no_grad():
                 teacher_output = teacher(imgs).to(device)
-            # Forward pass of the student
-            student_output = student(imgs).to(device)
+
+            # Forward pass of the student, produces the raw logits
+            soft_student_output, hard_student_output = student(imgs)
 
             # Calculate loss, soft target loss
             # https://arxiv.org/pdf/1503.02531.pdf
-            student_loss = student_loss_fn(student_output, labels)
-            distill_loss = distillation_loss_fn(teacher_output, student_output)
+            student_loss = student_loss_fn(hard_student_output.to(device), labels)
+            distill_loss = distillation_loss_fn(soft_student_output.to(device), teacher_output)
 
             # Magnitudes of gradients scale with 1/T^2 --> multiply loss by T^2
-            loss = (alpha * student_loss + (1 - alpha) * distill_loss) * temperature * temperature
+            loss = (alpha * student_loss) + ((1 - alpha) * distill_loss * temperature * temperature)
 
             # Backprop for student model only
             loss.backward()
             student_optimizer.step()
 
             # Calculate train accuracy
-            pred_class = torch.argmax(student_output, dim=1).to(device)
+            pred_class = torch.argmax(hard_student_output, dim=1).to(device)
             correct = torch.eq(pred_class, labels).sum()
 
             # Record relevant quantities for minibatch of current epoch
