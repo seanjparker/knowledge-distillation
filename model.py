@@ -64,6 +64,33 @@ class ResNet(nn.Module):
         return out
 
 
+class Student(nn.Module):
+    def __init__(self, temperature):
+        super(Student, self).__init__()
+        self.temperature = temperature
+        self.cnn1 = nn.Conv2d(3, 32, kernel_size=(3, 3))
+        self.bn1 = nn.BatchNorm2d(32)
+        self.mp1 = nn.MaxPool2d(kernel_size=(2, 2))
+        self.cnn2 = nn.Conv2d(32, 64, kernel_size=(3, 3))
+        self.bn2 = nn.BatchNorm2d(64)
+        self.mp2 = nn.MaxPool2d(kernel_size=(2, 2))
+        self.fc1 = nn.Linear(2304, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 10)
+
+    def forward(self, x):
+        x = self.mp1(F.relu(self.bn1(self.cnn1(x))))
+        x = self.mp2(F.relu(self.bn2(self.cnn2(x))))
+        x = x.view(x.size(0), -1)  # Flatten
+        x = F.dropout(F.relu(self.fc1(x)), p=0.2)
+        x = F.dropout(F.relu(self.fc2(x)), p=0.2)
+        x = self.fc3(x)
+        soft_target = F.log_softmax(x / self.temperature, dim=1)
+        hard_target = F.log_softmax(x, dim=1)
+
+        return soft_target, hard_target
+
+
 # Softmax with temperature
 # -- Adapted from PyTorch Softmax layer
 # -- See: https://pytorch.org/docs/stable/_modules/torch/nn/modules/activation.html#Softmax
@@ -79,39 +106,21 @@ class SoftmaxT(nn.Module):
             self.dim = None
 
     def forward(self, in_data):
-        return F.softmax(in_data / self.temperature, self.dim)
+        return F.log_softmax(in_data / self.temperature, self.dim)
 
     def extra_repr(self) -> str:
         return 'dim={dim}'.format(dim=self.dim)
 
 
 def create_student(device, temperature):
-    return nn.Sequential(
-        nn.Conv2d(3, 32, kernel_size=(3, 3)),
-        nn.BatchNorm2d(32),
-        nn.ReLU(),
-        nn.MaxPool2d(kernel_size=(2, 2)),
-        nn.Conv2d(32, 64, kernel_size=(3, 3)),
-        nn.BatchNorm2d(64),
-        nn.ReLU(),
-        nn.MaxPool2d(kernel_size=(2, 2)),
-        nn.Flatten(),
-        nn.Linear(2304, 128),
-        nn.ReLU(),
-        nn.Dropout(p=0.2),
-        nn.Linear(128, 64),
-        nn.ReLU(),
-        nn.Dropout(p=0.2),
-        nn.Linear(64, 10),
-        SoftmaxT(temperature)
-    ).to(device)
+    return Student(temperature).to(device)
 
 
 def create_teacher(device, temperature, teacher_state_dict_path=None):
     teacher_model = ResNet(BasicBlock, [2, 2, 2, 2]).to(device)
 
     if teacher_state_dict_path is not None:
-        teacher_model.load_state_dict(torch.load(teacher_state_dict_path))
+        teacher_model.load_state_dict(torch.load(teacher_state_dict_path, map_location=device))
 
     return torch.nn.Sequential(
         teacher_model,
