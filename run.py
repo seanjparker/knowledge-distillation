@@ -5,9 +5,22 @@ import pickle
 from sklearn.model_selection import train_test_split
 from utils import load_mnist, load_cifar, calc_accuracy
 from model import create_student, create_teacher
-from train import kd_train
+from train import kd_train, train_teacher_model
 
 from datetime import datetime
+
+
+def train_teacher(dataset, device):
+    # Load dataset
+    train_dataset, test_dataset = load_mnist() if dataset == 'mnist' else load_cifar()
+    teacher_model = create_teacher(device, 1)
+
+    # Train with custom args
+    teacher_model = train_teacher_model((train_dataset, test_dataset), teacher_model, device=device)
+
+    # Save trained model with name
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    torch.save(teacher_model.state_dict(), f'./models/{timestamp}_teacher_{dataset}.pt')
 
 
 def run_experiment_small_dataset(dataset, device, how_much, temperature=10, alpha=0.1):
