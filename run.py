@@ -13,7 +13,9 @@ from datetime import datetime
 def train_teacher(dataset, device):
     # Load dataset
     train_dataset, test_dataset = load_mnist() if dataset == 'mnist' else load_cifar()
-    teacher_model = create_teacher(device, 1)
+    in_dims = 3 if dataset == 'cifar' else 1
+
+    teacher_model = create_teacher(device, 1, in_dims=in_dims)
 
     # Train with custom args
     teacher_model = train_teacher_model((train_dataset, test_dataset), teacher_model, device=device)

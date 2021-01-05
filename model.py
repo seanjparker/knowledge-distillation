@@ -32,7 +32,7 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
+    def __init__(self, block, num_blocks, num_classes=10, in_dims=3):
         super(ResNet, self).__init__()
         self.in_planes = 64
 
@@ -116,8 +116,8 @@ def create_student(device, temperature):
     return Student(temperature).to(device)
 
 
-def create_teacher(device, temperature, teacher_state_dict_path=None):
-    teacher_model = ResNet(BasicBlock, [2, 2, 2, 2]).to(device)
+def create_teacher(device, temperature, teacher_state_dict_path=None, in_dims=3):
+    teacher_model = ResNet(BasicBlock, [2, 2, 2, 2], in_dims).to(device)
 
     if teacher_state_dict_path is not None:
         teacher_model.load_state_dict(torch.load(teacher_state_dict_path, map_location=device))
