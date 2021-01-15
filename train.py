@@ -21,28 +21,31 @@ def train_model(datasets: Tuple[DataLoader, DataLoader], model, lr=0.001, epochs
     teacher_lr_sch = torch.optim.lr_scheduler.MultiStepLR(teacher_optimizer, [10, 25, 40], gamma=0.5)
     teacher_loss_fn = nn.CrossEntropyLoss()
 
+    losses = np.zeros((epochs,), dtype=np.float32)
+    train_correct = np.zeros((epochs,), dtype=np.float32)
     for ep in range(epochs):
         start_time = time.time()
-        ep_loss = 0.0
-        correct = 0
         for i, (imgs, labels) in enumerate(train):
             imgs, labels = imgs.to(device), labels.to(device)
             teacher_optimizer.zero_grad()
 
-            preds = model(imgs)
-            if isinstance(preds, tuple):
-                preds = preds[1]
-            loss = teacher_loss_fn(preds.to(device), labels)
+            preds = model(imgs)[1]
+            preds_x = preds[1] if isinstance(preds, tuple) else preds
+            loss = teacher_loss_fn(preds_x.to(device), labels)
             loss.backward()
             teacher_optimizer.step()
 
-            pred_class = torch.argmax(preds, dim=1).to(device)
+            pred_class = torch.argmax(preds_x, dim=1).to(device)
             correct = torch.eq(pred_class, labels).sum()
+
+            # Record relevant quantities for minibatch of current epoch
+            train_correct[ep] += float(correct)
+            losses[ep] += loss.detach().item()
 
         teacher_lr_sch.step()
 
         print(
-            f'epoch: {ep + 1}, loss: {ep_loss / len(train.dataset):.2e}, train acc: {correct[ep] / len(train.dataset):.3f}, time: {(time.time() - start_time):.2f}s')
+            f'epoch: {ep + 1}, loss: {losses[ep] / len(train.dataset):.2e}, train acc: {train_correct[ep] / len(train.dataset):.3f}, time: {(time.time() - start_time):.2f}s')
 
     return model
 
