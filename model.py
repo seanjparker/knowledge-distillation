@@ -36,7 +36,7 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(in_dims, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
@@ -91,6 +91,45 @@ class Student(nn.Module):
         return soft_target, hard_target
 
 
+class Assistant(nn.Module):
+    def __init__(self, temperature, in_dims):
+        super(Assistant, self).__init__()
+        self.temperature = temperature
+
+        self.cnn1 = nn.Conv2d(in_dims, 32, kernel_size=(3, 3))
+        self.bn1 = nn.BatchNorm2d(32)
+
+        self.cnn2 = nn.Conv2d(32, 64, kernel_size=(3, 3))
+        self.bn2 = nn.BatchNorm2d(64)
+        self.mp2 = nn.MaxPool2d(kernel_size=(2, 2))
+
+        self.cnn3 = nn.Conv2d(64, 128, kernel_size=(3, 3))
+        self.bn3 = nn.BatchNorm2d(128)
+        self.mp3 = nn.MaxPool2d(kernel_size=(2, 2))
+
+        self.cnn4 = nn.Conv2d(128, 256, kernel_size=(3, 3))
+        self.bn4 = nn.BatchNorm2d(256)
+        self.mp4 = nn.MaxPool2d(kernel_size=(2, 2))
+
+        self.fc1 = nn.Linear(1024, 512)
+        self.fc2 = nn.Linear(512, 64)
+        self.fc3 = nn.Linear(64, 10)
+
+    def forward(self, x):
+        x = F.relu(self.bn1(self.cnn1(x)))
+        x = self.mp2(F.relu(self.bn2(self.cnn2(x))))
+        x = self.mp3(F.relu(self.bn3(self.cnn3(x))))
+        x = self.mp4(F.relu(self.bn4(self.cnn4(x))))
+        x = x.view(x.size(0), -1)  # Flatten
+        x = F.dropout(F.relu(self.fc1(x)), p=0.2)
+        x = F.dropout(F.relu(self.fc2(x)), p=0.2)
+        x = self.fc3(x)
+        soft_target = F.log_softmax(x / self.temperature, dim=1)
+        hard_target = F.log_softmax(x, dim=1)
+
+        return soft_target, hard_target
+
+
 # Softmax with temperature
 # -- Adapted from PyTorch Softmax layer
 # -- See: https://pytorch.org/docs/stable/_modules/torch/nn/modules/activation.html#Softmax
@@ -126,3 +165,7 @@ def create_teacher(device, temperature, teacher_state_dict_path=None, in_dims=3)
         teacher_model,
         SoftmaxT(temperature)
     ).to(device)
+
+
+def create_assistant(device, temperature, in_dims=3):
+    return Assistant(temperature, in_dims).to(device)

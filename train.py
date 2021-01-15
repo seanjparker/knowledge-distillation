@@ -10,12 +10,12 @@ from typing import Tuple
 from utils import weight_reset
 
 
-def train_teacher_model(datasets: Tuple[DataLoader, DataLoader], teacher, lr=0.001, epochs=30, device='cpu'):
+def train_model(datasets: Tuple[DataLoader, DataLoader], model, lr=0.001, epochs=30, device='cpu'):
     # Load the datasets, train and test (reports test accuracy every 10 epochs)
     train, test = datasets[0], datasets[1]
 
-    teacher.apply(weight_reset)
-    teacher_optimizer = torch.optim.Adam(teacher.parameters(), lr=lr)
+    model.apply(weight_reset)
+    teacher_optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     # Set up the lr scheduler and loss functions
     teacher_lr_sch = torch.optim.lr_scheduler.MultiStepLR(teacher_optimizer, [10, 25, 40], gamma=0.5)
@@ -29,7 +29,7 @@ def train_teacher_model(datasets: Tuple[DataLoader, DataLoader], teacher, lr=0.0
             imgs, labels = imgs.to(device), labels.to(device)
             teacher_optimizer.zero_grad()
 
-            preds = teacher(imgs)
+            preds = model(imgs)
             loss = teacher_loss_fn(preds.to(device), labels)
             loss.backward()
             teacher_optimizer.step()
@@ -42,7 +42,7 @@ def train_teacher_model(datasets: Tuple[DataLoader, DataLoader], teacher, lr=0.0
         print(
             f'epoch: {ep + 1}, loss: {ep_loss / len(train.dataset):.2e}, train acc: {correct[ep] / len(train.dataset):.3f}, time: {(time.time() - start_time):.2f}s')
 
-    return teacher
+    return model
 
 
 def kd_train(datasets: Tuple[DataLoader, DataLoader], teacher, student, student_optimizer=None,
