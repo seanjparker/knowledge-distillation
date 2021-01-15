@@ -30,6 +30,8 @@ def train_model(datasets: Tuple[DataLoader, DataLoader], model, lr=0.001, epochs
             teacher_optimizer.zero_grad()
 
             preds = model(imgs)
+            if isinstance(preds, tuple):
+                preds = preds[1]
             loss = teacher_loss_fn(preds.to(device), labels)
             loss.backward()
             teacher_optimizer.step()
