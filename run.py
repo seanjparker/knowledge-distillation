@@ -10,19 +10,53 @@ from train import kd_train, train_model
 from datetime import datetime
 
 
-def train_student_from_teacher_assistant(dataset, device):
+def kd_train_with_save(dataset_name, student_model_name, train_dataset, test_dataset, device,
+                       teacher, student, **kwargs):
+    # Train assistant using teacher
+    stepped_model, logged_data = kd_train((train_dataset, test_dataset),
+                                          teacher, student, kwargs, device=device)
+
+    # Save trained model with name
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    filename = f'{timestamp}_{student_model_name}'.replace('.', '-')
+    torch.save(stepped_model.state_dict(), f'./models/{filename}_{dataset_name}.pt')
+
+    # Save results
+    with open(f'{filename}_data.pickle', 'wb') as handle:
+        pickle.dump(logged_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return stepped_model
+
+
+def train_using_assistant_1_step(dataset, device, assistant_path=None):
     # Load dataset
     train_dataset, test_dataset = load_mnist() if dataset == 'mnist' else load_cifar()
     in_dims = 3 if dataset == 'cifar' else 1
 
-    assistant_model = create_assistant(device, 10, in_dims)
+    temperature = 10
+    teacher_model = create_teacher(device, temperature, './models/cifar_teacher_0.pt')
+    if assistant_path is not None:
+        assistant_model = create_assistant(device, temperature, assistant_path, in_dims)
+    else:
+        assistant_model = create_assistant(device, temperature, in_dims=in_dims)
 
-    # Train with custom args
-    assistant_model = train_model((train_dataset, test_dataset), assistant_model, device=device)
+    student_model = create_student(device, temperature)
 
-    # Save trained model with name
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    torch.save(assistant_model.state_dict(), f'./models/{timestamp}_assistant_{dataset}.pt')
+    # KD from teacher to assistant
+    if assistant_path is None:
+        print('Training Assistant Model')
+        assistant_model = kd_train_with_save(dataset, 'assistant', train_dataset, test_dataset, device,
+                                             teacher_model, assistant_model,
+                                             temperature=temperature, alpha=0.1)
+        calc_accuracy(test_dataset, assistant_model, device)
+
+    # KD from assistant to student
+    print('Training Student Model')
+    student_model = kd_train_with_save(dataset, 'student', train_dataset, test_dataset, device,
+                                       assistant_model, student_model, temperature=temperature, alpha=0.1, epochs=50)
+    calc_accuracy(test_dataset, student_model, device)
+
+    return assistant_model, student_model
 
 
 def train_teacher(dataset, device):
@@ -103,4 +137,5 @@ if __name__ == '__main__':
     device_name = torch.cuda.get_device_name() if torch_device.type == 'cuda' else 'cpu'
     print(f'Using device: {device_name}, type {torch_device}')
 
-    train_student_from_teacher_assistant('cifar', torch_device)
+    # Run your chosen experiment!
+    # e.g. train_using_assistant_1_step('cifar', torch_device)

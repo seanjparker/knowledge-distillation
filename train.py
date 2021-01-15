@@ -15,10 +15,10 @@ def train_model(datasets: Tuple[DataLoader, DataLoader], model, lr=0.001, epochs
     train, test = datasets[0], datasets[1]
 
     model.apply(weight_reset)
-    teacher_optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     # Set up the lr scheduler and loss functions
-    teacher_lr_sch = torch.optim.lr_scheduler.MultiStepLR(teacher_optimizer, [10, 25, 40], gamma=0.5)
+    lr_sch = torch.optim.lr_scheduler.MultiStepLR(optimizer, [10, 25, 40], gamma=0.5)
     teacher_loss_fn = nn.CrossEntropyLoss()
 
     losses = np.zeros((epochs,), dtype=np.float32)
@@ -27,13 +27,13 @@ def train_model(datasets: Tuple[DataLoader, DataLoader], model, lr=0.001, epochs
         start_time = time.time()
         for i, (imgs, labels) in enumerate(train):
             imgs, labels = imgs.to(device), labels.to(device)
-            teacher_optimizer.zero_grad()
+            optimizer.zero_grad()
 
-            preds = model(imgs)[1]
+            preds = model(imgs)
             preds_x = preds[1] if isinstance(preds, tuple) else preds
             loss = teacher_loss_fn(preds_x.to(device), labels)
             loss.backward()
-            teacher_optimizer.step()
+            optimizer.step()
 
             pred_class = torch.argmax(preds_x, dim=1).to(device)
             correct = torch.eq(pred_class, labels).sum()
@@ -42,7 +42,7 @@ def train_model(datasets: Tuple[DataLoader, DataLoader], model, lr=0.001, epochs
             train_correct[ep] += float(correct)
             losses[ep] += loss.detach().item()
 
-        teacher_lr_sch.step()
+        lr_sch.step()
 
         print(
             f'epoch: {ep + 1}, loss: {losses[ep] / len(train.dataset):.2e}, train acc: {train_correct[ep] / len(train.dataset):.3f}, time: {(time.time() - start_time):.2f}s')
@@ -79,7 +79,9 @@ def kd_train(datasets: Tuple[DataLoader, DataLoader], teacher, student, student_
 
             # Forward pass of the teacher with input
             with torch.no_grad():
-                teacher_output = teacher(imgs).to(device)
+                teacher_output = teacher(imgs)
+                preds_teacher = teacher_output[1] if isinstance(teacher_output, tuple) else teacher_output
+                preds_teacher = preds_teacher.to(device)
 
             # Forward pass of the student, produces the raw logits
             soft_student_output, hard_student_output = student(imgs)
@@ -87,7 +89,7 @@ def kd_train(datasets: Tuple[DataLoader, DataLoader], teacher, student, student_
             # Calculate loss, soft target loss
             # https://arxiv.org/pdf/1503.02531.pdf
             student_loss = student_loss_fn(hard_student_output.to(device), labels)
-            distill_loss = distillation_loss_fn(soft_student_output.to(device), teacher_output)
+            distill_loss = distillation_loss_fn(soft_student_output.to(device), preds_teacher)
 
             # Magnitudes of gradients scale with 1/T^2 --> multiply loss by T^2
             loss = (alpha * student_loss) + ((1 - alpha) * distill_loss * temperature * temperature)

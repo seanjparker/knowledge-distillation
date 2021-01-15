@@ -156,7 +156,7 @@ def create_student(device, temperature):
 
 
 def create_teacher(device, temperature, teacher_state_dict_path=None, in_dims=3):
-    teacher_model = ResNet(BasicBlock, [2, 2, 2, 2], in_dims).to(device)
+    teacher_model = ResNet(BasicBlock, [2, 2, 2, 2], in_dims=in_dims).to(device)
 
     if teacher_state_dict_path is not None:
         teacher_model.load_state_dict(torch.load(teacher_state_dict_path, map_location=device))
@@ -167,5 +167,10 @@ def create_teacher(device, temperature, teacher_state_dict_path=None, in_dims=3)
     ).to(device)
 
 
-def create_assistant(device, temperature, in_dims=3):
-    return Assistant(temperature, in_dims).to(device)
+def create_assistant(device, temperature, state_dict_path=None, in_dims=3):
+    assistant_model = Assistant(temperature, in_dims).to(device)
+
+    if state_dict_path is not None:
+        assistant_model.load_state_dict(torch.load(state_dict_path, map_location=device))
+
+    return assistant_model
