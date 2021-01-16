@@ -1,13 +1,12 @@
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
 from torch.utils.data.dataloader import DataLoader
 
 import numpy as np
 import time
 from typing import Tuple
 
-from utils import weight_reset
+from .utils import weight_reset
 
 
 def train_model(datasets: Tuple[DataLoader, DataLoader], model, lr=0.001, epochs=30, device='cpu'):

@@ -3,9 +3,9 @@ from torch.utils.data import Subset
 import numpy as np
 import pickle
 from sklearn.model_selection import train_test_split
-from utils import load_mnist, load_cifar, calc_accuracy
-from model import create_student, create_teacher, create_assistant
-from train import kd_train, train_model
+from .utils import load_mnist, load_cifar, calc_accuracy
+from .model import create_student, create_teacher, create_assistant
+from .train import kd_train, train_model
 
 from datetime import datetime
 
