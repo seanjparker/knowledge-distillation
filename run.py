@@ -11,10 +11,11 @@ from datetime import datetime
 
 
 def kd_train_with_save(dataset_name, student_model_name, train_dataset, test_dataset, device,
-                       teacher, student, **kwargs):
+                       teacher, student, temperature, alpha, epochs):
     # Train assistant using teacher
     stepped_model, logged_data = kd_train((train_dataset, test_dataset),
-                                          teacher, student, kwargs, device=device)
+                                          teacher, student, temperature=temperature, alpha=alpha,
+                                          epochs=epochs, device=device)
 
     # Save trained model with name
     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -28,7 +29,7 @@ def kd_train_with_save(dataset_name, student_model_name, train_dataset, test_dat
     return stepped_model
 
 
-def train_using_assistant_1_step(dataset, device, assistant_path=None):
+def train_using_assistant_1_step(dataset, device, epochs=50, assistant_path=None):
     # Load dataset
     train_dataset, test_dataset = load_mnist() if dataset == 'mnist' else load_cifar()
     in_dims = 3 if dataset == 'cifar' else 1
@@ -47,13 +48,14 @@ def train_using_assistant_1_step(dataset, device, assistant_path=None):
         print('Training Assistant Model')
         assistant_model = kd_train_with_save(dataset, 'assistant', train_dataset, test_dataset, device,
                                              teacher_model, assistant_model,
-                                             temperature=temperature, alpha=0.1)
+                                             temperature=temperature, alpha=0.1, epochs=30)
         calc_accuracy(test_dataset, assistant_model, device)
 
     # KD from assistant to student
     print('Training Student Model')
     student_model = kd_train_with_save(dataset, 'student', train_dataset, test_dataset, device,
-                                       assistant_model, student_model, temperature=temperature, alpha=0.1, epochs=50)
+                                       assistant_model, student_model,
+                                       temperature=temperature, alpha=0.1, epochs=epochs)
     calc_accuracy(test_dataset, student_model, device)
 
     return assistant_model, student_model
