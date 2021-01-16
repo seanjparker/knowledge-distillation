@@ -1,4 +1,5 @@
 # Knowledge Distillation
+[Github Repository](https://github.com/seanjparker/knowledge-distillation)
 
 ## Requirements
 
@@ -15,7 +16,7 @@ $ pipenv install
 
 Pipenv will automatically create and install all the required dependencies for the project.
 
-## Training
+## Getting started
 
 The quickest way to train some of the models is to load one of the notebooks in Google Colab.
 For example, running the notebook found in `notebooks/kd-mnist.ipynb` you can train both the Teacher and Student
@@ -31,5 +32,11 @@ to train the models from scratch and perform KD using a varitey of hyperparamete
 First, alter the `run.py` script to run your desired experiment, then:
 ```shell script
 $ pipenv shell
-$ python run.py
+$ python notebooks/run.py
+```
+
+Alternatively, you can launch Jupyter Lab locally (the package is included in the Pipfile).
+```shell script
+$ pipenv shell
+$ jupyter lab
 ```
