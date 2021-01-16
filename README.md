@@ -40,3 +40,17 @@ Alternatively, you can launch Jupyter Lab locally (the package is included in th
 $ pipenv shell
 $ jupyter lab
 ```
+
+## Navigating the codebase
+
+- `/models` contains the best trained models for the Teacher, Student and Assistant networks
+- `/notebooks` contains all the code for the project, it is broken down as follows:
+    - `kd-analysis` allows you to generate plots based on the pickled data produced during training
+    - `kd-assistant` contains the code from the TAKD experiments
+    - `kd-cifar` contains all the experiments for KD teacher to student using the whole dataset and only 3% of the data
+    - `kd-mnist` same as above, except for it uses the MNIST dataset
+    - `model.py` contains network definitions and helper create functions
+    - `train.py` contains helper functions for training the networks
+    - `utils.py` contains functions for loading datasets and calculating model accuracy
+    - `run.py` contains helper functions for running different experiments
+
